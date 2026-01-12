@@ -1,8 +1,5 @@
 from typing import List, Optional
 from scraper.base_scraper import BaseScraper
-from scraper.sina_scraper import SinaScraper
-from scraper.eastmoney_scraper import EastmoneyScraper
-from scraper.wallstreetcn_scraper import WallstreetcnScraper
 from scraper.cls_scraper import ClsScraper
 from scraper.kr36_scraper import Kr36Scraper
 from scraper.huxiu_scraper import HuxiuScraper
@@ -17,10 +14,7 @@ class ScraperManager:
 
     def __init__(self):
         self.scrapers: List[BaseScraper] = [
-            SinaScraper(),        # 新浪财经
-            EastmoneyScraper(),   # 东方财富
-            WallstreetcnScraper(),# 财经聚合（网易、搜狐、和讯）
-            ClsScraper(),         # 财联社
+            ClsScraper(),         # 财联社（API）
             Kr36Scraper(),        # 36氪（科技资讯）
             HuxiuScraper(),       # 虎嗅（商业资讯）
         ]
