@@ -20,6 +20,8 @@ class StockNewsApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
         brightness: Brightness.light,
+        // 使用系统字体，避免加载 Google Fonts
+        fontFamily: 'System',
       ),
       home: const NewsListPage(),
     );
