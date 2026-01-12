@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from typing import List, Optional
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from app.models import NewsItem, CrawlRequest, CrawlResponse, HealthResponse
 from app.deduplicator import NewsDeduplicator
@@ -47,6 +49,31 @@ async def health_check():
     return HealthResponse(status="ok", message="财经新闻爬虫服务运行中")
 
 
+def _run_crawl(target_date, keywords):
+    """在后台线程中运行爬虫任务（同步函数）"""
+    logger.info(f"[后台线程] 开始抓取新闻 - 日期: {target_date or '今日'}, 关键词: {keywords}")
+
+    # 清空去重缓存（每次抓取都获取最新数据）
+    deduplicator.clear()
+
+    # 抓取新闻（同步操作，在线程池中执行）
+    all_items, failed_sources = scraper_manager.fetch_all(target_date)
+
+    # 去重
+    unique_items = deduplicator.deduplicate(all_items)
+
+    # 关键词过滤
+    if keywords:
+        unique_items = deduplicator.filter_by_keywords(unique_items, keywords)
+
+    # 按时间倒序排序
+    unique_items.sort(key=lambda x: x.published_at, reverse=True)
+
+    logger.info(f"[后台线程] 抓取完成 - 成功: {len(unique_items)} 条, 失败来源: {failed_sources}")
+
+    return unique_items, failed_sources
+
+
 @app.post("/crawl", response_model=CrawlResponse)
 async def crawl_news(request: CrawlRequest = None):
     """
@@ -62,27 +89,18 @@ async def crawl_news(request: CrawlRequest = None):
 
         logger.info(f"开始抓取新闻 - 日期: {target_date or '今日'}, 关键词: {keywords}")
 
-        # 清空去重缓存（每次抓取都获取最新数据）
-        deduplicator.clear()
-
-        # 抓取新闻
-        all_items, failed_sources = scraper_manager.fetch_all(target_date)
-
-        # 去重
-        unique_items = deduplicator.deduplicate(all_items)
-
-        # 关键词过滤
-        if keywords:
-            unique_items = deduplicator.filter_by_keywords(unique_items, keywords)
-
-        # 按时间倒序排序
-        unique_items.sort(key=lambda x: x.published_at, reverse=True)
+        # 在线程池中执行爬虫任务，不阻塞事件循环
+        loop = asyncio.get_event_loop()
+        unique_items, failed_sources = await loop.run_in_executor(
+            None,  # 使用默认的 ThreadPoolExecutor
+            _run_crawl,
+            target_date,
+            keywords
+        )
 
         # 更新全局数据
         current_news = unique_items
         last_fetch_time = datetime.now()
-
-        logger.info(f"抓取完成 - 成功: {len(unique_items)} 条, 失败来源: {failed_sources}")
 
         return CrawlResponse(
             success=len(failed_sources) < len(scraper_manager.scrapers),
@@ -94,6 +112,16 @@ async def crawl_news(request: CrawlRequest = None):
     except Exception as e:
         logger.error(f"抓取失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _run_fetch_news(date, keyword_list):
+    """在后台线程中运行新闻获取任务"""
+    all_items, _ = scraper_manager.fetch_all(date)
+    items = deduplicator.deduplicate(all_items)
+    if keyword_list:
+        items = deduplicator.filter_by_keywords(items, keyword_list)
+    items.sort(key=lambda x: x.published_at, reverse=True)
+    return items
 
 
 @app.get("/news", response_model=List[NewsItem])
@@ -111,13 +139,15 @@ async def get_news(
     try:
         keyword_list = [k.strip() for k in keywords.split(",")] if keywords else None
 
-        # 如果请求了特定日期或关键词，重新抓取
+        # 如果请求了特定日期或关键词，重新抓取（不阻塞）
         if date or keyword_list:
-            all_items, _ = scraper_manager.fetch_all(date)
-            items = deduplicator.deduplicate(all_items)
-            if keyword_list:
-                items = deduplicator.filter_by_keywords(items, keyword_list)
-            items.sort(key=lambda x: x.published_at, reverse=True)
+            loop = asyncio.get_event_loop()
+            items = await loop.run_in_executor(
+                None,
+                _run_fetch_news,
+                date,
+                keyword_list
+            )
             return items
 
         # 否则返回当前缓存的数据
