@@ -6,46 +6,56 @@ from app.models import NewsItem
 
 
 class EastmoneyScraper(BaseScraper):
-    """东方财富爬虫 - 使用 Reddit Finance RSS 作为替代源"""
+    """东方财富爬虫"""
 
     def get_source_name(self) -> str:
-        return "Reddit 财经"
+        return "东方财富"
 
     def fetch_news(self, target_date: Optional[str] = None) -> List[NewsItem]:
         items = []
-        try:
-            # 使用 Reddit Finance RSS
-            feed = feedparser.parse("https://www.reddit.com/r/finance/.rss")
 
-            for entry in feed.get('entries', [])[:50]:
-                try:
-                    title = entry.get('title', '')
-                    link = entry.get('link', '')
-                    summary = entry.get('description', entry.get('summary', ''))
-                    published_str = entry.get('published', '')
+        # 东方财富RSS源列表
+        rss_sources = [
+            ("东方财富", "https://www.eastmoney.com/rss/index.xml"),
+            ("东方财富股票", "https://www.eastmoney.com/rss/stock.xml"),
+        ]
 
-                    if not title or not link:
+        for source_name, rss_url in rss_sources:
+            try:
+                feed = feedparser.parse(rss_url)
+
+                for entry in feed.get('entries', [])[:50]:
+                    try:
+                        title = entry.get('title', '')
+                        link = entry.get('link', '')
+                        summary = entry.get('description', entry.get('summary', ''))
+                        published_str = entry.get('published', '')
+
+                        if not title or not link:
+                            continue
+
+                        published_dt = self._parse_date(published_str)
+
+                        if target_date and not self._match_date(published_dt, target_date):
+                            continue
+
+                        items.append(NewsItem(
+                            source=source_name,
+                            title=title.strip(),
+                            summary=self._clean_summary(summary),
+                            url=link,
+                            published_at=self._format_datetime(published_dt),
+                            fetched_at=self._format_datetime(datetime.now())
+                        ))
+
+                    except Exception:
                         continue
 
-                    published_dt = self._parse_date(published_str)
+                if items:
+                    break
 
-                    if target_date and not self._match_date(published_dt, target_date):
-                        continue
-
-                    items.append(NewsItem(
-                        source=self.get_source_name(),
-                        title=title.strip(),
-                        summary=self._clean_summary(summary),
-                        url=link,
-                        published_at=self._format_datetime(published_dt),
-                        fetched_at=self._format_datetime(datetime.now())
-                    ))
-
-                except Exception:
-                    continue
-
-        except Exception:
-            pass
+            except Exception:
+                continue
 
         return items
 

@@ -6,61 +6,66 @@ from app.models import NewsItem
 
 
 class SinaScraper(BaseScraper):
-    """新浪财经爬虫 - 使用 BBC 中文 RSS 作为替代源"""
+    """新浪财经爬虫"""
 
     def get_source_name(self) -> str:
-        return "BBC 中文"
+        return "新浪财经"
 
     def fetch_news(self, target_date: Optional[str] = None) -> List[NewsItem]:
         items = []
-        try:
-            # 使用 BBC 中文 RSS 作为替代
-            feed = feedparser.parse("http://feeds.bbci.co.uk/zhongwen/simp/rss.xml")
 
-            for entry in feed.get('entries', [])[:50]:
-                try:
-                    title = entry.get('title', '')
-                    link = entry.get('link', '')
-                    summary = entry.get('description', entry.get('summary', ''))
-                    published_str = entry.get('published', '')
+        # 新浪财经RSS源列表
+        rss_sources = [
+            ("新浪财经", "https://finance.sina.com.cn/roll/index.d.html"),
+            ("新浪股票", "https://finance.sina.com.cn/roll/finance_roll.shtml"),
+        ]
 
-                    if not title or not link:
+        for source_name, rss_url in rss_sources:
+            try:
+                feed = feedparser.parse(rss_url)
+
+                for entry in feed.get('entries', [])[:50]:
+                    try:
+                        title = entry.get('title', '')
+                        link = entry.get('link', '')
+                        summary = entry.get('description', entry.get('summary', ''))
+                        published_str = entry.get('published', '')
+
+                        if not title or not link:
+                            continue
+
+                        published_dt = self._parse_date(published_str)
+
+                        if target_date and not self._match_date(published_dt, target_date):
+                            continue
+
+                        items.append(NewsItem(
+                            source=source_name,
+                            title=title.strip(),
+                            summary=self._clean_summary(summary),
+                            url=link,
+                            published_at=self._format_datetime(published_dt),
+                            fetched_at=self._format_datetime(datetime.now())
+                        ))
+
+                    except Exception:
                         continue
 
-                    # 解析发布时间
-                    published_dt = self._parse_date(published_str)
+                if items:
+                    break
 
-                    # 日期过滤
-                    if target_date and not self._match_date(published_dt, target_date):
-                        continue
-
-                    items.append(NewsItem(
-                        source=self.get_source_name(),
-                        title=title.strip(),
-                        summary=self._clean_summary(summary),
-                        url=link,
-                        published_at=self._format_datetime(published_dt),
-                        fetched_at=self._format_datetime(datetime.now())
-                    ))
-
-                except Exception:
-                    continue
-
-        except Exception:
-            pass
+            except Exception:
+                continue
 
         return items
 
     def _parse_date(self, date_str: str) -> datetime:
         """解析日期字符串"""
         try:
-            return datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %z")
+            from dateutil import parser
+            return parser.parse(date_str)
         except:
-            try:
-                from dateutil import parser
-                return parser.parse(date_str)
-            except:
-                return datetime.now()
+            return datetime.now()
 
     def _match_date(self, dt: datetime, target_date: str) -> bool:
         """检查日期是否匹配"""
