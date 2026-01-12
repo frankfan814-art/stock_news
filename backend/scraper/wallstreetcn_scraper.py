@@ -6,7 +6,7 @@ from app.models import NewsItem
 
 
 class WallstreetcnScraper(BaseScraper):
-    """多源财经新闻爬虫 - 聚合国内各大财经媒体和证券公司RSS"""
+    """多源财经新闻爬虫 - 聚合国内各大财经媒体RSS"""
 
     def get_source_name(self) -> str:
         return "财经聚合"
@@ -14,31 +14,16 @@ class WallstreetcnScraper(BaseScraper):
     def fetch_news(self, target_date: Optional[str] = None) -> List[NewsItem]:
         items = []
 
-        # 国内财经媒体和证券公司RSS源
+        # 国内可用的RSS源
         rss_sources = [
-            # 综合财经媒体
-            ("第一财经", "https://www.yicai.com/rss/xinwen.xml"),
-            ("财新网", "https://www.caixin.com/rss/rss_finance.xml"),
-            ("网易财经", "https://money.163.com/special/002557S8/newsdata.js.rss"),  # 备用
-            ("新浪财经", "https://finance.sina.com.cn/roll/index.d.html"),
-            ("腾讯财经", "https://finance.qq.com/rss/finance_stock.xml"),
-            ("凤凰财经", "https://finance.ifeng.com/rss/index.xml"),
+            # 网易财经RSS（可用）
+            ("网易财经", "http://money.163.com/special/002557S8/money_rss.xml"),
 
-            # 证券类媒体
-            ("中国证券报", "http://www.cs.com.cn/rss/index.xml"),
-            ("上海证券报", "https://www.cnstock.com/rss/news.xml"),
-            ("证券时报", "http://www.stcn.com/rss/all.xml"),
-            ("证券日报", "http://www.zqrb.cn/rss/finance.xml"),
+            # 搜狐财经RSS（可用）
+            ("搜狐财经", "http://business.sohu.com/rss/business.xml"),
 
-            # 金融平台
-            ("东方财富", "https://www.eastmoney.com/rss/index.xml"),
-            ("金融界", "http://news.jrj.com.cn/rss/jrj.xml"),
-            ("雪球网", "https://xueqiu.com/feed/latest"),
-            ("同花顺", "https://news.10jqka.com.cn/rss/finance.xml"),
+            # 和讯网RSS（可用）
             ("和讯网", "http://rss.hexun.com/rss/News.xml"),
-
-            # 证券公司研究
-            ("中金公司", "https://research.cicc.com/rss/research.xml"),
         ]
 
         for source_name, rss_url in rss_sources:
@@ -72,9 +57,8 @@ class WallstreetcnScraper(BaseScraper):
                     except Exception:
                         continue
 
-                # 如果成功获取到数据，不再尝试其他源
-                if items:
-                    break
+                # 如果成功获取到数据，继续尝试其他源（聚合多个来源）
+                # 不 break，尝试获取所有可用源
 
             except Exception:
                 continue
@@ -97,9 +81,9 @@ class WallstreetcnScraper(BaseScraper):
         except:
             return True
 
-    def _clean_summary(self, html: str) -> str:
+    def _clean_summary(self, text: str) -> str:
         """清理 HTML 标签"""
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, 'lxml')
+        soup = BeautifulSoup(text, 'lxml')
         text = soup.get_text(strip=True)
         return text[:200] + "..." if len(text) > 200 else text

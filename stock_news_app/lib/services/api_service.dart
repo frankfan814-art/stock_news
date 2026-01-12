@@ -3,8 +3,9 @@ import 'package:http/http.dart' as http;
 import '../models/news_item.dart';
 
 class ApiService {
-  // 生产环境使用服务器地址
-  static const String baseUrl = 'http://124.222.203.221';
+  // 本地开发环境
+  static const String baseUrl = 'http://localhost:8000';
+  // 生产环境: 'http://124.222.203.221'
   static const Duration timeout = Duration(seconds: 60);
 
   /// 健康检查

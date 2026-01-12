@@ -4,7 +4,6 @@ from scraper.sina_scraper import SinaScraper
 from scraper.eastmoney_scraper import EastmoneyScraper
 from scraper.wallstreetcn_scraper import WallstreetcnScraper
 from scraper.cls_scraper import ClsScraper
-from scraper.broker_scraper import BrokerScraper
 from scraper.kr36_scraper import Kr36Scraper
 from scraper.huxiu_scraper import HuxiuScraper
 from app.models import NewsItem
@@ -20,9 +19,8 @@ class ScraperManager:
         self.scrapers: List[BaseScraper] = [
             SinaScraper(),        # 新浪财经
             EastmoneyScraper(),   # 东方财富
-            WallstreetcnScraper(),# 多源财经聚合（第一财经、财新、雪球等）
+            WallstreetcnScraper(),# 财经聚合（网易、搜狐、和讯）
             ClsScraper(),         # 财联社
-            BrokerScraper(),      # 券商研报（中金、中信、国泰君安等）
             Kr36Scraper(),        # 36氪（科技资讯）
             HuxiuScraper(),       # 虎嗅（商业资讯）
         ]

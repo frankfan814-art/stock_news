@@ -101,6 +101,8 @@ class _NewsListPageState extends State<NewsListPage> {
       setState(() {
         _newsItems.clear();
         _newsItems.addAll(news);
+        // 按发布时间倒序排列（最新的在最上面）
+        _newsItems.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
         _lastUpdateTime = lastUpdate;
         _isLoading = false;
         _errorMessage = news.isEmpty ? '暂无数据，请刷新' : null;
