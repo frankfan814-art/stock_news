@@ -1,9 +1,12 @@
-name: Auto Deploy to Server
+name: Deploy Frontend Only
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'stock_news_app/**'
+      - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:  # 允许手动触发
 
 jobs:
@@ -54,7 +57,7 @@ jobs:
           target: "/var/www/stock_news/"
           strip_components: 1
 
-      - name: Deploy to server via SSH
+      - name: Reload Nginx via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -62,29 +65,13 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            cd /opt/stock_news
-            echo "=== Pulling latest code ==="
-            git pull origin main
-
-            echo ""
             echo "=== Setting web permissions ==="
             chown -R nobody:nobody /var/www/stock_news
             chmod -R 755 /var/www/stock_news
 
             echo ""
-            echo "=== Restarting backend service ==="
-            systemctl restart stock-news-api
-
-            echo "Waiting for service to start..."
-            sleep 5
-
-            echo ""
-            echo "=== Checking service status ==="
-            systemctl status stock-news-api --no-pager
-
-            echo ""
-            echo "=== Testing API ==="
-            curl -s http://localhost/health
+            echo "=== Verifying web files ==="
+            ls -la /var/www/stock_news/
 
             echo ""
             echo "=== Reloading Nginx ==="
@@ -92,4 +79,4 @@ jobs:
             /usr/local/openresty/nginx/sbin/nginx -s reload
 
             echo ""
-            echo "=== Deployment completed! ==="
+            echo "=== Frontend deployment completed! ==="
