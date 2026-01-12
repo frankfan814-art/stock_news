@@ -4,6 +4,8 @@ from scraper.sina_scraper import SinaScraper
 from scraper.eastmoney_scraper import EastmoneyScraper
 from scraper.wallstreetcn_scraper import WallstreetcnScraper
 from scraper.cls_scraper import ClsScraper
+from scraper.kr36_scraper import Kr36Scraper
+from scraper.huxiu_scraper import HuxiuScraper
 from app.models import NewsItem
 from app.translator import translator
 import logging
@@ -17,10 +19,12 @@ class ScraperManager:
 
     def __init__(self):
         self.scrapers: List[BaseScraper] = [
-            SinaScraper(),
-            EastmoneyScraper(),
-            WallstreetcnScraper(),
-            ClsScraper(),
+            SinaScraper(),        # BBC 中文（可能无法访问）
+            EastmoneyScraper(),   # Reddit 财经（可能无法访问）
+            WallstreetcnScraper(),# Reddit 股市（可能无法访问）
+            ClsScraper(),         # 财联社（可访问）
+            Kr36Scraper(),        # 36氪（可访问，科技资讯）
+            HuxiuScraper(),       # 虎嗅（可访问，商业资讯）
         ]
 
     def fetch_all(self, target_date: Optional[str] = None) -> tuple[List[NewsItem], List[str]]:
